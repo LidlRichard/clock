@@ -1,6 +1,8 @@
 import datetime as dt
-import sys, yaml
+import http.server
+import sys, yaml, http
 from yaml.error import YAMLError
+from web.http_server import start_http_server
 
 class Clock():
     
@@ -11,8 +13,8 @@ class Clock():
     def __init__(self) -> None:
         try:
             with open("config.yaml", "r") as config_file:
-                config = yaml.safe_load(config_file)
-                self.log_location = config["log"]
+                self.config:dict = yaml.safe_load(config_file)
+                self.log_location = self.config["log"]
         except FileNotFoundError:
             print(f"\nCannot find Clock config file: config.yaml\n")
             exit()
@@ -69,7 +71,11 @@ def start():
     
 
     if len(sys.argv) == 2:
-        clock.user_msg(str(sys.argv[1]))
+        if sys.argv[1]=="--ui":
+            print("\nstarting http server...")
+            start_http_server(clock.config)
+        else:
+            clock.user_msg(str(sys.argv[1]))
 
     if len(sys.argv) == 3:
         clock.user_msg(str(sys.argv[1]), str(sys.argv[2]))
