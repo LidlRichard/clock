@@ -1,6 +1,7 @@
 import datetime as dt
-import sys, yaml
+import sys, yaml, http
 from yaml.error import YAMLError
+from web.http_server import start_http_server
 
 class Clock():
     
@@ -11,20 +12,20 @@ class Clock():
     def __init__(self) -> None:
         try:
             with open("config.yaml", "r") as config_file:
-                config = yaml.safe_load(config_file)
-                self.log_location = config["log"]
+                self.config:dict = yaml.safe_load(config_file)
+                self.log_location = self.config["log"]
         except FileNotFoundError:
-            print(f"Cannot find Clock config file: config.yaml")
-            raise
+            print(f"\nCannot find Clock config file: config.yaml\n")
+            exit()
         except YAMLError:
-            print(f"Error loading config.yaml file: config.yaml")
-            raise
+            print(f"\nError loading config.yaml file: config.yaml\n")
+            exit()
         except KeyError:
-            print(f"KeyError when attempting to access log file in config.yaml")
-            raise
+            print(f"\nKeyError when attempting to access log file in config.yaml\n")
+            exit()
         except Exception as err:
-            print(f"Unexpected {err=}, {type(err)=}")
-            raise
+            print(f"\nUnexpected {err=}, {type(err)=}")
+            exit()
     
     
     def _clock_in(self)-> str:
@@ -32,6 +33,7 @@ class Clock():
 
     
     def user_msg(self, msg:str, timestamp:str=None)-> str:
+        msg = "clocked in" if msg == "in" else msg
         self._write_log(msg, timestamp)
 
     
@@ -43,19 +45,18 @@ class Clock():
         try:
             timestamp = dt.datetime.fromisoformat(str(timestamp))
         except ValueError:
-            print(f"TypeError when converting timestamp {timestamp} - use iso format 8601 e.g. 2024-07-22 15:30")
-            raise
+            print(f"\nTypeError when converting timestamp {timestamp} - use iso format 8601 e.g. 2024-07-22 15:30\n")
+            exit()
         except Exception as err:
-            print(f"Unexpected {err=}, {type(err)=}")
-            raise
+            print(f"\nUnexpected {err=}, {type(err)=}\n")
+            exit()
         
         try:
             with open(self.log_location, "a") as log:
                 log.write(f"[{timestamp}] {msg}\n")
         except Exception as err:
-            print(f"Unexpected {err=}, {type(err)=}")
-            raise
-
+            print(f"\nUnexpected {err=}, {type(err)=}\n")
+            exit()
 
 
 def start():
@@ -68,7 +69,11 @@ def start():
     
 
     if len(sys.argv) == 2:
-        clock.user_msg(str(sys.argv[1]))
+        if sys.argv[1]=="--ui":
+            print("\nstarting http server...")
+            start_http_server(clock.config)
+        else:
+            clock.user_msg(str(sys.argv[1]))
 
     if len(sys.argv) == 3:
         clock.user_msg(str(sys.argv[1]), str(sys.argv[2]))

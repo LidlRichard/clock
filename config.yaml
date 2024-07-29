@@ -1,1 +1,3 @@
 log: clock.log
+HOST: "localhost" # http server
+PORT: 8000 # http server port to listen on
