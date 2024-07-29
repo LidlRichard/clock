@@ -1,58 +1,67 @@
 # webapp.py
-
-from functools import cached_property
-from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qsl, urlparse
+from jinja2 import Environment, FileSystemLoader
+import os
+
+LOG = "clock.log"
 
 class ClockWebServer(BaseHTTPRequestHandler):
-    @cached_property
-    def url(self):
-        return urlparse(self.path)
-
-    @cached_property
-    def query_data(self):
-        return dict(parse_qsl(self.url.query))
-
-    @cached_property
-    def post_data(self):
-        content_length = int(self.headers.get("Content-Length", 0))
-        return self.rfile.read(content_length)
-
-    @cached_property
-    def form_data(self):
-        return dict(parse_qsl(self.post_data.decode("utf-8")))
-
-    @cached_property
-    def cookies(self):
-        return SimpleCookie(self.headers.get("Cookie"))
-
-    def get_log_entry(self, path):
-        param_value = self.form_data
-        return param_value
 
     def do_GET(self):
         print(self.path)
-        log_entry = self.get_log_entry(self.path)
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
+        logs = self.load_logs(LOG)
+        
+        if self.path == "/":
+            # if no GET param then create initial page using HTML template
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            jinja_environment = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
+            page_template = jinja_environment.get_template("index.html")
+            page_rendered = bytes(page_template.render({"logs": logs}), "utf-8")
+            self.wfile.write(page_rendered)
+
+        else:
+            # if param check correct param name, append log entry and send updated page in response
+            pass
 
 
-    def do_POST(self):
-        pass
+    def load_logs(self, log)->list:
+        """
+        load into server memory the entries from the log file
+        as a list, so these can be written to the html template
+        and served as a http response page to the user
+        """
+        log_entries = []
+        with open(log, "r") as log_file:
+            for line in log_file:
+                print(line)
+                log_entries.append(str(line).replace("\n",""))
+        return log_entries
 
-def start_http_server(config={}):
+
+def start_http_server(config={})->None:
     """
     
     """
     HOST = config.get("HOST", "localhost")
     PORT = config.get("PORT", 8000)
-    
+
+    if config.get("log"):
+        LOG = config["log"]
+
     web_server = HTTPServer((HOST,PORT), ClockWebServer)
 
-    print(f"Server at htt://{HOST}:{PORT}")
+    print(f"Server at http://{HOST}:{PORT}")
     print("Use CTR+C to stop it")
+
+    try:
+        web_server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+    web_server.server_close()
+    print("Server stopped")
 
 
 if __name__ == "__main__":
