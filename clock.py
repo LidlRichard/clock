@@ -1,5 +1,4 @@
 import datetime as dt
-import http.server
 import sys, yaml, http
 from yaml.error import YAMLError
 from web.http_server import start_http_server

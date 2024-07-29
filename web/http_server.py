@@ -1,7 +1,8 @@
 # webapp.py
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
 from jinja2 import Environment, FileSystemLoader
-import os
+import os, datetime as dt
 
 LOG = "clock.log"
 
@@ -12,7 +13,36 @@ class ClockWebServer(BaseHTTPRequestHandler):
         logs = self.load_logs(LOG)
         
         if self.path == "/":
-            # if no GET param then create initial page using HTML template
+            # if no GET param then create initial page using HTML template and initial 'clocking in' log entry
+            logs.append(self.add_timestamp("Clocked in"))
+            # write logs back to log file
+            self.write_logs(logs)
+            # respond to user
+            self.update_task_page(logs)
+        else:
+            # if param check correct param name, append log entry and send updated page in response
+            query_components = parse_qs(urlparse(self.path).query)
+            log_msg = query_components.get("log_msg")
+            if log_msg and len(log_msg) > 0:
+                print(log_msg[0])
+                # Add timestamp to new log entry
+                msg = self.add_timestamp(log_msg[0])
+                # Add task entry to logs list
+                logs.append(msg)
+                # write logs back to log file
+                self.write_logs(logs)
+                # respond to user
+                self.update_task_page(logs)
+
+    def write_logs(self, logs)->None:
+        """
+        writes log list back to file
+        """
+        with open(LOG, "w") as log_file:
+            for entry in logs:
+                log_file.writelines(f"{entry}\n")
+
+    def update_task_page(self, logs):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
@@ -21,10 +51,12 @@ class ClockWebServer(BaseHTTPRequestHandler):
             page_rendered = bytes(page_template.render({"logs": logs}), "utf-8")
             self.wfile.write(page_rendered)
 
-        else:
-            # if param check correct param name, append log entry and send updated page in response
-            pass
-
+    def add_timestamp(self,msg:str)->str:
+        """
+        prepends iso8601 timestamp to log entry
+        """
+        timestamp = dt.datetime.strftime(dt.datetime.now(), "%Y-%m-%d %H:%M:%S")
+        return f"[{timestamp}] {msg}"
 
     def load_logs(self, log)->list:
         """
