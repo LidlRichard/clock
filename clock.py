@@ -1,12 +1,14 @@
 import datetime as dt
-import sys, yaml, http
+import yaml
 from yaml.error import YAMLError
-from web.http_server import start_http_server
+
+LOG = "clock.log"
 
 class Clock():
     
     """
-    
+    Class for reading and writing to the Clock
+    app's log file.
     """
     
     def __init__(self) -> None:
@@ -28,12 +30,12 @@ class Clock():
             exit()
     
     
-    def _clock_in(self)-> str:
+    def clock_in(self)-> str:
         self._write_log("Clocked in")
 
     
     def user_msg(self, msg:str, timestamp:str=None)-> str:
-        msg = "clocked in" if msg == "in" else msg
+        msg = "Clocked in" if msg == "in" else msg
         self._write_log(msg, timestamp)
 
     
@@ -58,32 +60,30 @@ class Clock():
             print(f"\nUnexpected {err=}, {type(err)=}\n")
             exit()
 
-
-def start():
-
-    if len(sys.argv) <= 1 or len(sys.argv) > 3:
-        display_help()
-        exit()
-
-    clock = Clock() 
+    def load_logs(self, log)->list:
+        """
+        load into server memory the entries from the log file
+        as a list, so these can be written to the html template
+        and served as a http response page to the user
+        """
+        log_entries = []
+        with open(log, "r") as log_file:
+            for line in log_file:
+#                print(line)
+                log_entries.append(str(line).replace("\n",""))
+        return log_entries
     
+    def write_logs(self, logs)->None:
+        """
+        writes log list back to file
+        """
+        with open(LOG, "w") as log_file:
+            for entry in logs:
+                log_file.writelines(f"{entry}\n")
 
-    if len(sys.argv) == 2:
-        if sys.argv[1]=="--ui":
-            print("\nstarting http server...")
-            start_http_server(clock.config)
-        else:
-            clock.user_msg(str(sys.argv[1]))
-
-    if len(sys.argv) == 3:
-        clock.user_msg(str(sys.argv[1]), str(sys.argv[2]))
-
-
-def display_help():
-    print("\n")
-    print("clock.py in\n")
-    print('clock.py "task description" "[yyyy-mm-dd H:M[:S]"]\n')
-    print('Enter "clock.py in" to start the day. Thereafter always enter tasks upon completion.\n')
-
-if __name__ == "__main__":
-    start()
+    def add_timestamp(self,msg:str)->str:
+        """
+        prepends iso8601 timestamp to log entry
+        """
+        timestamp = dt.datetime.strftime(dt.datetime.now(), "%Y-%m-%d %H:%M:%S")
+        return f"[{timestamp}] {msg}"

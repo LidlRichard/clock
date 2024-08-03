@@ -1,3 +1,4 @@
 log: clock.log
 HOST: "localhost" # http server
 PORT: 8000 # http server port to listen on
+clock_in_upon_web_server_initialisation: True
